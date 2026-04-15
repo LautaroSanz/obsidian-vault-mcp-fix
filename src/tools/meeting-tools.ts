@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { VAULTS, TEAM_MEMBERS } from "../config.js";
 import { memoryClient } from "../memory.js";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 export const CreateMeetingNoteInputSchema = z.object({
@@ -92,6 +92,9 @@ function generateMeetingNoteContent(
     content += "\n";
   }
 
+  content += `## Implementación\n`;
+  content += `- (Links a commits que implementan esta decisión se agregarán automáticamente via auto_link_commits)\n\n`;
+
   content += `## Notas\n\n`;
 
   return content;
@@ -103,7 +106,8 @@ function getNotePath(vaultName: string, input: CreateMeetingNoteInput): string {
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
   const day = String(dateObj.getDate()).padStart(2, "0");
 
-  const filename = `${year}-${month}-${day}-${input.title.toLowerCase().replace(/\s+/g, "-")}.md`;
+  const slug = input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const filename = `${year}-${month}-${day}-${slug}.md`;
   const vaultPath = VAULTS[vaultName as keyof typeof VAULTS].path;
   const folder = join(vaultPath, "Reuniones");
 
@@ -119,10 +123,8 @@ export async function createMeetingNote(
   const notePath = getNotePath(input.vault, input);
   const noteContent = generateMeetingNoteContent(input);
 
-  const folder = notePath.substring(0, notePath.lastIndexOf("\\"));
-
   try {
-    mkdirSync(folder, { recursive: true });
+    mkdirSync(dirname(notePath), { recursive: true });
     writeFileSync(notePath, noteContent, "utf-8");
   } catch (error: any) {
     throw new Error(`Error al crear nota: ${error.message}`);
@@ -132,28 +134,54 @@ export async function createMeetingNote(
     VAULTS[input.vault as keyof typeof VAULTS].path.length + 1
   );
 
-  const memoryEntry = {
-    title: input.title,
-    summary: input.summary || `Reunión: ${input.title}`,
-    participants: input.participants,
-    decisions: input.decisions.map(d => ({ text: d })),
-    actionItems: input.actionItems.map(ai => ({
-      task: ai.task,
-      owner: ai.owner,
-      dueDate: ai.dueDate,
-      status: "pending" as const,
-    })),
-    relatedRepos: input.relatedRepos,
-    notePath: relativeNotePath,
-  };
+  const meetingTimestamp = new Date(input.date).toISOString();
+  const meetingId = `meeting-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  let decisionIds: string[] = [];
+  let actionItemIds: string[] = [];
 
   try {
     await memoryClient.saveMeeting({
-      ...memoryEntry,
-      id: `meeting-${Date.now()}`,
-      timestamp: new Date(input.date).toISOString(),
+      id: meetingId,
+      timestamp: meetingTimestamp,
       vault: input.vault,
+      title: input.title,
+      summary: input.summary || `Reunión: ${input.title}`,
+      participants: input.participants,
+      decisions: input.decisions.map(d => ({ text: d })),
+      actionItems: input.actionItems.map(ai => ({
+        task: ai.task,
+        owner: ai.owner,
+        dueDate: ai.dueDate,
+        status: "pending" as const,
+      })),
+      relatedRepos: input.relatedRepos,
+      notePath: relativeNotePath,
     });
+
+    // Save each decision as a separate Memory entry so it can be linked/queried
+    for (const decisionText of input.decisions) {
+      const decisionId = await memoryClient.saveDecision(
+        decisionText,
+        meetingId,
+        input.participants,
+        input.relatedRepos ?? [],
+        meetingTimestamp
+      );
+      decisionIds.push(decisionId);
+    }
+
+    // Save each action item as a separate Memory entry
+    for (const ai of input.actionItems) {
+      const aiId = await memoryClient.saveActionItem(
+        ai.task,
+        ai.owner,
+        ai.dueDate,
+        meetingId,
+        meetingTimestamp
+      );
+      actionItemIds.push(aiId);
+    }
   } catch (error: any) {
     console.error(`Error guardando en Memory: ${error.message}`);
   }
@@ -163,7 +191,10 @@ export async function createMeetingNote(
       success: true,
       notePath: relativeNotePath,
       fullPath: notePath,
-      message: `Nota de reunión creada y guardada en Memory`,
+      meetingId,
+      decisionIds,
+      actionItemIds,
+      message: `Nota de reunión creada. ${decisionIds.length} decisiones y ${actionItemIds.length} action items guardados en Memory.`,
     },
     null,
     2

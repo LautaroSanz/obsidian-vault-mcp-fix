@@ -55,23 +55,36 @@ export const TEAM_MEMBERS: TeamMember[] = [
 export const VAULTS: Record<string, VaultConfig> = {
   FACULTAD: {
     name: "FACULTAD",
-    path: join(HOME, "Documentos", "FACULTAD"),
+    path: "C:\\Users\\riper\\Documentos\\FACULTAD",
     hasGit: true,
   },
   DATAOILERS: {
     name: "DATAOILERS",
-    path: join(HOME, "Escritorio", "DataOilers", "DATAOILERS"),
+    path: "C:\\Users\\riper\\Documentos\\DATAOILERS",
     hasGit: false,
   },
   PROYECTOS: {
     name: "PROYECTOS",
-    path: join(HOME, "Documentos", "PROYECTOS"),
+    path: "C:\\Users\\riper\\Documentos\\PROYECTOS",
     hasGit: false,
   },
 };
 
-// Repos discovered from GitHub org (populated at runtime)
-export let REPOS: Record<string, RepoConfig> = {};
+// Repos from Data Oilers organization (local paths)
+export let REPOS: Record<string, RepoConfig> = {
+  "enterprise-ai-platform": {
+    name: "enterprise-ai-platform",
+    url: "https://github.com/data-oilers/enterprise-ai-platform",
+    localPath: "D:\\repos\\data-oilers\\enterprise-ai-platform",
+    org: "data-oilers",
+  },
+  "poc-macro-riesgo": {
+    name: "poc-macro-riesgo",
+    url: "https://github.com/data-oilers/poc-macro-riesgo",
+    localPath: "D:\\repos\\data-oilers\\poc-macro-riesgo",
+    org: "data-oilers",
+  },
+};
 
 // Subject tags for categorization
 export const SUBJECT_TAGS: Record<string, string> = {

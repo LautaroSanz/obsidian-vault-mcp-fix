@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "mcp__obsidian-vault-team-context__list_repos",
+      "mcp__obsidian-vault-team-context__create_meeting_note",
+      "mcp__obsidian-vault-team-context__get_repo_context",
+      "Bash(ls -la D:/obsidian-vault-mcp/dist/*.js)"
     ]
   }
 }

@@ -28,11 +28,26 @@ import {
   GetTeamContextInputSchema,
   ListActionItemsInputSchema,
 } from "./tools/memory-tools.js";
+import {
+  autoLinkCommits,
+  linkCommitToDecision,
+  linkActionItemToCommit,
+  getDecisionTimeline,
+  getDecisionImpact,
+  markDecisionComplete,
+  AutoLinkCommitsInputSchema,
+  LinkCommitToDecisionInputSchema,
+  LinkActionItemToCommitInputSchema,
+  GetDecisionTimelineInputSchema,
+  GetDecisionImpactInputSchema,
+  MarkDecisionCompleteInputSchema,
+} from "./tools/linking-tools.js";
+import { advancedSearch, AdvancedSearchInputSchema } from "./tools/search-tools.js";
 import { repoDiscovery } from "./git/repo-discovery.js";
 
 const server = new McpServer({
   name: "obsidian-vault-team-context",
-  version: "1.1.0",
+  version: "1.2.0",
 });
 
 // Initialize repo discovery
@@ -221,6 +236,78 @@ server.tool(
   ListActionItemsInputSchema.shape,
   async (params: any) => {
     const result = await listActionItems(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+// Linking Tools (Phase 2)
+server.tool(
+  "auto_link_commits",
+  "Detectar automáticamente commits que implementan una decisión usando heurísticas de scoring",
+  AutoLinkCommitsInputSchema.shape,
+  async (params: any) => {
+    const result = await autoLinkCommits(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "link_commit_to_decision",
+  "Linkear manualmente un commit a una decisión",
+  LinkCommitToDecisionInputSchema.shape,
+  async (params: any) => {
+    const result = await linkCommitToDecision(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "link_action_item_to_commit",
+  "Asociar un action item con el commit que lo implementa",
+  LinkActionItemToCommitInputSchema.shape,
+  async (params: any) => {
+    const result = await linkActionItemToCommit(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "get_decision_timeline",
+  "Ver la línea de tiempo de una decisión: reunión → action items → commits",
+  GetDecisionTimelineInputSchema.shape,
+  async (params: any) => {
+    const result = await getDecisionTimeline(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "get_decision_impact",
+  "Ver el impacto de una decisión: commits, repos, archivos y autores afectados",
+  GetDecisionImpactInputSchema.shape,
+  async (params: any) => {
+    const result = await getDecisionImpact(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "mark_decision_complete",
+  "Marcar una decisión como implementada/completada",
+  MarkDecisionCompleteInputSchema.shape,
+  async (params: any) => {
+    const result = await markDecisionComplete(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+// Search Tools (Phase 2)
+server.tool(
+  "advanced_search",
+  "Búsqueda avanzada en Memory con filtros múltiples y ranking por relevancia",
+  AdvancedSearchInputSchema.shape,
+  async (params: any) => {
+    const result = await advancedSearch(params);
     return { content: [{ type: "text", text: result }] };
   },
 );

@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { homedir } from "node:os";
 
-// Memory entry schemas
+// --- Schemas ---
+
 export const DecisionSchema = z.object({
   text: z.string(),
   owner: z.string().optional(),
@@ -10,22 +14,28 @@ export const DecisionSchema = z.object({
 export const ActionItemSchema = z.object({
   task: z.string(),
   owner: z.string(),
-  dueDate: z.string(), // ISO date string
+  dueDate: z.string(),
   status: z.enum(["pending", "in-progress", "completed"]),
   relatedIssue: z.string().optional(),
 });
 
-export const MeetingEntrySchema = z.object({
-  id: z.string(),
-  timestamp: z.string(), // ISO date string
-  title: z.string(),
-  summary: z.string(),
-  participants: z.array(z.string()),
-  decisions: z.array(DecisionSchema),
-  actionItems: z.array(ActionItemSchema),
-  vault: z.string(),
-  notePath: z.string(),
-  relatedRepos: z.array(z.string()).optional(),
+export const CommitDecisionLinkSchema = z.object({
+  commitHash: z.string(),
+  commitAuthor: z.string(),
+  commitDate: z.string(),
+  decisionId: z.string(),
+  decisionText: z.string(),
+  repo: z.string(),
+  confidenceScore: z.number().min(0).max(1),
+  linkType: z.enum(["implements", "fixes", "refactors", "related"]),
+  createdAt: z.string(),
+  createdBy: z.enum(["auto", "manual"]),
+});
+
+export const ImpactSummarySchema = z.object({
+  filesChanged: z.number(),
+  reposImpacted: z.array(z.string()),
+  authorsInvolved: z.array(z.string()),
 });
 
 export const ContextEntrySchema = z.object({
@@ -38,12 +48,33 @@ export const ContextEntrySchema = z.object({
   contributors: z.array(z.string()).optional(),
   relatedRepos: z.array(z.string()).optional(),
   relatedLinks: z.array(z.string()).optional(),
+  // Phase 2 additions
+  linkedCommits: z.array(CommitDecisionLinkSchema).optional(),
+  tags: z.array(z.string()).optional(),
+  linkedActionItems: z.array(z.string()).optional(),
+  impactSummary: ImpactSummarySchema.optional(),
+  status: z.enum(["open", "in-progress", "completed", "pending"]).optional(),
+});
+
+export const MeetingEntrySchema = z.object({
+  id: z.string(),
+  timestamp: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  participants: z.array(z.string()),
+  decisions: z.array(DecisionSchema),
+  actionItems: z.array(ActionItemSchema),
+  vault: z.string(),
+  notePath: z.string(),
+  relatedRepos: z.array(z.string()).optional(),
 });
 
 export type Decision = z.infer<typeof DecisionSchema>;
 export type ActionItem = z.infer<typeof ActionItemSchema>;
-export type MeetingEntry = z.infer<typeof MeetingEntrySchema>;
+export type CommitDecisionLink = z.infer<typeof CommitDecisionLinkSchema>;
+export type ImpactSummary = z.infer<typeof ImpactSummarySchema>;
 export type ContextEntry = z.infer<typeof ContextEntrySchema>;
+export type MeetingEntry = z.infer<typeof MeetingEntrySchema>;
 
 export interface MemoryQueryResult {
   entries: ContextEntry[];
@@ -60,146 +91,357 @@ export interface TeamContextSnapshot {
   activeRepos: string[];
 }
 
-export class MemoryClient {
-  private useLocalStorage: boolean = false;
-  private entries: ContextEntry[] = [];
+// --- Persistence Interface ---
 
-  constructor() {
-    // Initialize: check if claude-mem is available
-    // For now, use local storage fallback
-    this.useLocalStorage = true;
+export interface MemoryPersistence {
+  save(entry: ContextEntry): Promise<string>;
+  query(searchTerm: string, filters?: QueryFilters): Promise<ContextEntry[]>;
+  getById(id: string): Promise<ContextEntry | null>;
+  update(id: string, data: Partial<ContextEntry>): Promise<void>;
+  delete(id: string): Promise<void>;
+  getAll(): ContextEntry[];
+}
+
+export interface QueryFilters {
+  type?: string;
+  author?: string;
+  from?: Date;
+  to?: Date;
+  repos?: string[];
+  tags?: string[];
+  status?: string;
+  linkedToCommit?: boolean;
+  confidenceMin?: number;
+}
+
+// --- Shared filter logic ---
+
+function filterEntries(
+  entries: ContextEntry[],
+  searchTerm: string,
+  filters?: QueryFilters
+): ContextEntry[] {
+  let results = [...entries];
+
+  if (filters?.type) {
+    results = results.filter(e => e.type === filters.type);
+  }
+  if (filters?.author) {
+    results = results.filter(e => e.contributors?.includes(filters.author!));
+  }
+  if (filters?.from) {
+    results = results.filter(e => new Date(e.timestamp) >= filters.from!);
+  }
+  if (filters?.to) {
+    results = results.filter(e => new Date(e.timestamp) <= filters.to!);
+  }
+  if (filters?.repos && filters.repos.length > 0) {
+    results = results.filter(e =>
+      e.relatedRepos?.some(r => filters.repos!.includes(r))
+    );
+  }
+  if (filters?.tags && filters.tags.length > 0) {
+    results = results.filter(e =>
+      filters.tags!.some(t => e.tags?.includes(t))
+    );
+  }
+  if (filters?.status) {
+    results = results.filter(e => e.status === filters.status);
+  }
+  if (filters?.linkedToCommit === true) {
+    results = results.filter(e => (e.linkedCommits?.length ?? 0) > 0);
+  }
+  if (filters?.linkedToCommit === false) {
+    results = results.filter(e => (e.linkedCommits?.length ?? 0) === 0);
+  }
+  if (filters?.confidenceMin !== undefined) {
+    results = results.filter(e =>
+      e.linkedCommits?.some(lc => lc.confidenceScore >= filters.confidenceMin!)
+    );
+  }
+  if (searchTerm.trim()) {
+    const q = searchTerm.toLowerCase();
+    results = results.filter(
+      e =>
+        e.title.toLowerCase().includes(q) ||
+        e.summary.toLowerCase().includes(q) ||
+        e.tags?.some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  return results;
+}
+
+// --- In-Memory Persistence (base class) ---
+
+class InMemoryPersistence implements MemoryPersistence {
+  protected store: Map<string, ContextEntry> = new Map();
+
+  async save(entry: ContextEntry): Promise<string> {
+    this.store.set(entry.id, entry);
+    return entry.id;
+  }
+
+  async query(searchTerm: string, filters?: QueryFilters): Promise<ContextEntry[]> {
+    return filterEntries(Array.from(this.store.values()), searchTerm, filters);
+  }
+
+  async getById(id: string): Promise<ContextEntry | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async update(id: string, data: Partial<ContextEntry>): Promise<void> {
+    const existing = this.store.get(id);
+    if (!existing) throw new Error(`Entry not found: ${id}`);
+    this.store.set(id, { ...existing, ...data });
+  }
+
+  async delete(id: string): Promise<void> {
+    this.store.delete(id);
+  }
+
+  getAll(): ContextEntry[] {
+    return Array.from(this.store.values());
+  }
+}
+
+// --- File-based Persistence (Phase 2) ---
+
+class JsonFilePersistence extends InMemoryPersistence {
+  private readonly filePath: string;
+
+  constructor(filePath?: string) {
+    super();
+    this.filePath = filePath ?? join(homedir(), ".claude", "obsidian-mcp-memory.json");
+    this.load();
+  }
+
+  private load(): void {
+    try {
+      if (existsSync(this.filePath)) {
+        const raw = readFileSync(this.filePath, "utf-8");
+        const entries = JSON.parse(raw) as ContextEntry[];
+        entries.forEach(e => this.store.set(e.id, e));
+        console.error(`[Memory] Loaded ${entries.length} entries from disk`);
+      }
+    } catch (err: any) {
+      console.error(`[Memory] Failed to load from ${this.filePath}: ${err.message}`);
+    }
+  }
+
+  private flush(): void {
+    try {
+      mkdirSync(dirname(this.filePath), { recursive: true });
+      const data = JSON.stringify(Array.from(this.store.values()), null, 2);
+      writeFileSync(this.filePath, data, "utf-8");
+    } catch (err: any) {
+      console.error(`[Memory] Failed to save to ${this.filePath}: ${err.message}`);
+    }
+  }
+
+  async save(entry: ContextEntry): Promise<string> {
+    await super.save(entry);
+    this.flush();
+    return entry.id;
+  }
+
+  async update(id: string, data: Partial<ContextEntry>): Promise<void> {
+    await super.update(id, data);
+    this.flush();
+  }
+
+  async delete(id: string): Promise<void> {
+    await super.delete(id);
+    this.flush();
+  }
+}
+
+// --- MemoryClient ---
+
+export class MemoryClient {
+  private persistence: MemoryPersistence;
+
+  constructor(persistence?: MemoryPersistence) {
+    this.persistence = persistence ?? new JsonFilePersistence();
+  }
+
+  private generateId(prefix: string): string {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   async save(type: string, entry: Record<string, unknown>): Promise<string> {
-    const id = `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = this.generateId("entry");
 
-    const contextEntry: ContextEntry = {
+    const contextEntry: ContextEntry = ContextEntrySchema.parse({
       id,
       timestamp: new Date().toISOString(),
-      type: type as any,
-      title: (entry.title as string) || "Untitled",
-      summary: (entry.summary as string) || "",
-      contributors: entry.participants as string[] | undefined,
-      relatedRepos: entry.relatedRepos as string[] | undefined,
-    };
+      type,
+      title: entry.title ?? "Untitled",
+      summary: entry.summary ?? "",
+      contributors: entry.participants,
+      relatedRepos: entry.relatedRepos,
+      tags: entry.tags,
+      status: entry.status ?? "open",
+    });
 
-    try {
-      ContextEntrySchema.parse(contextEntry);
-    } catch (error) {
-      throw new Error(`Invalid memory entry: ${error}`);
-    }
-
-    if (this.useLocalStorage) {
-      this.entries.push(contextEntry);
-    } else {
-      // TODO: Call claude-mem API when available
-      // await memoryApi.save(contextEntry);
-    }
-
+    await this.persistence.save(contextEntry);
     return id;
   }
 
   async saveMeeting(entry: MeetingEntry): Promise<string> {
     const validated = MeetingEntrySchema.parse(entry);
-    return this.save("meeting", {
+    // Use the provided ID so callers can reference it for decisions/action items
+    const id = validated.id;
+
+    const contextEntry: ContextEntry = ContextEntrySchema.parse({
+      id,
+      timestamp: validated.timestamp,
+      type: "meeting",
       title: validated.title,
       summary: validated.summary,
-      participants: validated.participants,
-      decisions: validated.decisions,
-      actionItems: validated.actionItems,
+      contributors: validated.participants,
       relatedRepos: validated.relatedRepos,
-      notePath: validated.notePath,
+      linkedActionItems: [],
+      linkedCommits: [],
+      status: "open",
+      tags: [],
     });
+
+    await this.persistence.save(contextEntry);
+    return id;
   }
 
-  async query(
-    searchQuery: string,
-    filters?: {
-      type?: string;
-      author?: string;
-      from?: Date;
-      to?: Date;
-      repos?: string[];
-    }
-  ): Promise<MemoryQueryResult> {
-    let results = this.entries;
+  async saveDecision(
+    text: string,
+    meetingId: string,
+    participants: string[],
+    relatedRepos: string[],
+    timestamp: string
+  ): Promise<string> {
+    const id = this.generateId("decision");
+    const entry: ContextEntry = ContextEntrySchema.parse({
+      id,
+      timestamp,
+      type: "decision",
+      title: text,
+      summary: text,
+      contributors: participants,
+      relatedRepos,
+      relatedLinks: [`meeting:${meetingId}`],
+      linkedCommits: [],
+      tags: [],
+      status: "open",
+    });
+    await this.persistence.save(entry);
+    return id;
+  }
 
-    if (filters?.type) {
-      results = results.filter(e => e.type === filters.type);
-    }
+  async saveActionItem(
+    task: string,
+    owner: string,
+    dueDate: string,
+    meetingId: string,
+    timestamp: string
+  ): Promise<string> {
+    const id = this.generateId("actionitem");
+    // Store owner + dueDate in summary as JSON; title holds the task text
+    const meta = JSON.stringify({ owner, dueDate });
+    const entry: ContextEntry = ContextEntrySchema.parse({
+      id,
+      timestamp,
+      type: "action-item",
+      title: task,
+      summary: meta,
+      contributors: [owner],
+      relatedLinks: [`meeting:${meetingId}`],
+      status: "pending",
+      tags: [],
+    });
+    await this.persistence.save(entry);
+    return id;
+  }
 
-    if (filters?.author) {
-      results = results.filter(e =>
-        e.contributors?.includes(filters.author!)
-      );
-    }
-
-    if (filters?.from) {
-      results = results.filter(e => new Date(e.timestamp) >= filters.from!);
-    }
-
-    if (filters?.to) {
-      results = results.filter(e => new Date(e.timestamp) <= filters.to!);
-    }
-
-    if (filters?.repos) {
-      results = results.filter(e =>
-        e.relatedRepos?.some(r => filters.repos!.includes(r))
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      results = results.filter(
-        e =>
-          e.title.toLowerCase().includes(query) ||
-          e.summary.toLowerCase().includes(query)
-      );
-    }
+  async query(searchQuery: string, filters?: QueryFilters): Promise<MemoryQueryResult> {
+    const results = await this.persistence.query(searchQuery, filters);
 
     return {
       entries: results,
       totalCount: results.length,
       timeRange: {
-        from: filters?.from?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        to: filters?.to?.toISOString() || new Date().toISOString(),
+        from:
+          filters?.from?.toISOString() ??
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        to: filters?.to?.toISOString() ?? new Date().toISOString(),
       },
     };
+  }
+
+  async getById(id: string): Promise<ContextEntry | null> {
+    return this.persistence.getById(id);
+  }
+
+  async update(id: string, data: Partial<ContextEntry>): Promise<void> {
+    return this.persistence.update(id, data);
+  }
+
+  async addCommitLink(entryId: string, link: CommitDecisionLink): Promise<void> {
+    const entry = await this.persistence.getById(entryId);
+    if (!entry) throw new Error(`Entry not found: ${entryId}`);
+
+    const existing = entry.linkedCommits ?? [];
+    const alreadyLinked = existing.some(
+      lc => lc.commitHash === link.commitHash && lc.repo === link.repo
+    );
+    if (alreadyLinked) return;
+
+    await this.persistence.update(entryId, {
+      linkedCommits: [...existing, link],
+    });
   }
 
   async getTeamContext(timeframe: "week" | "month"): Promise<TeamContextSnapshot> {
     const days = timeframe === "week" ? 7 : 30;
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const to = new Date();
 
-    const results = await this.query("", {
-      from,
-      to,
+    const allEntries = await this.persistence.query("", { from });
+
+    // Decisions in timeframe
+    const decisionEntries = await this.persistence.query("", { type: "decision", from });
+    const decisions: Decision[] = decisionEntries.map(e => ({
+      text: e.title,
+      owner: e.contributors?.[0],
+    }));
+
+    // All pending action items (not restricted to timeframe)
+    const pendingAI = await this.persistence.query("", { type: "action-item", status: "pending" });
+    const actionItems: ActionItem[] = pendingAI.map(e => {
+      let meta: Record<string, string> = {};
+      try { meta = JSON.parse(e.summary); } catch { /* summary not JSON */ }
+      return {
+        task: e.title,
+        owner: e.contributors?.[0] ?? meta.owner ?? "unknown",
+        dueDate: meta.dueDate ?? e.timestamp.substring(0, 10),
+        status: "pending" as const,
+      };
     });
 
-    const decisions: Decision[] = [];
-    const actionItems: ActionItem[] = [];
     const repos = new Set<string>();
     const contributors = new Map<string, number>();
 
-    for (const entry of results.entries) {
-      if (entry.contributors) {
-        entry.contributors.forEach(c => {
-          contributors.set(c, (contributors.get(c) || 0) + 1);
-        });
-      }
-      if (entry.relatedRepos) {
-        entry.relatedRepos.forEach(r => repos.add(r));
-      }
+    for (const entry of allEntries) {
+      entry.contributors?.forEach(c => {
+        contributors.set(c, (contributors.get(c) || 0) + 1);
+      });
+      entry.relatedRepos?.forEach(r => repos.add(r));
     }
 
     return {
       timeframe,
       summary: `Actividad de equipo de los últimos ${days} días`,
-      contributors: Array.from(contributors.entries()).map(([name, commits]) => ({
+      contributors: Array.from(contributors.entries()).map(([name, count]) => ({
         name,
-        commits,
-        activity: `${commits} eventos registrados`,
+        commits: count,
+        activity: `${count} eventos registrados`,
       })),
       recentDecisions: decisions,
       pendingActionItems: actionItems,
@@ -211,33 +453,29 @@ export class MemoryClient {
     owner?: string,
     status?: "pending" | "in-progress" | "completed"
   ): Promise<ActionItem[]> {
-    const results = await this.query("", {
+    const results = await this.persistence.query("", {
       type: "action-item",
       author: owner,
+      status,
     });
-
-    // Extract action items from meetings
-    const items: ActionItem[] = [];
-
-    for (const entry of results.entries) {
-      // Parse action items from entry
-      // This would need to be enhanced based on how we store action items
-    }
-
-    if (status) {
-      return items.filter(item => item.status === status);
-    }
-
-    return items;
+    return results.map(e => {
+      let meta: Record<string, string> = {};
+      try { meta = JSON.parse(e.summary); } catch { /* summary not JSON */ }
+      return {
+        task: e.title,
+        owner: e.contributors?.[0] ?? meta.owner ?? "unknown",
+        dueDate: meta.dueDate ?? e.timestamp.substring(0, 10),
+        status: (e.status as "pending" | "in-progress" | "completed") ?? "pending",
+      };
+    });
   }
 
-  async clear(): Promise<void> {
-    this.entries = [];
+  getAll(): ContextEntry[] {
+    return this.persistence.getAll();
   }
 
-  // For testing/debugging
   getEntriesCount(): number {
-    return this.entries.length;
+    return this.persistence.getAll().length;
   }
 }
 

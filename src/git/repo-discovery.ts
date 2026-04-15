@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { GIT_CONFIG, RepoConfig, setRepos } from "../config.js";
+import { GIT_CONFIG, RepoConfig, setRepos, REPOS } from "../config.js";
 
 export interface DiscoveredRepo {
   name: string;
@@ -80,7 +80,10 @@ export class RepoDiscovery {
       repoMap[repo.name] = repo;
     });
 
-    setRepos(repoMap);
+    // Merge discovered repos with existing configured repos (configured takes precedence)
+    const mergedRepos = { ...repoMap, ...REPOS };
+
+    setRepos(mergedRepos);
   }
 }
 
