@@ -55,7 +55,7 @@ function generateMeetingNoteContent(
 
   content += `## Participantes\n`;
   input.participants.forEach(p => {
-    content += `- ${p}\n`;
+    content += `- [[${p}]]\n`;
   });
   content += "\n";
 

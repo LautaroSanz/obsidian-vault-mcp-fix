@@ -5,7 +5,8 @@
       "mcp__obsidian-vault-team-context__list_repos",
       "mcp__obsidian-vault-team-context__create_meeting_note",
       "mcp__obsidian-vault-team-context__get_repo_context",
-      "Bash(ls -la D:/obsidian-vault-mcp/dist/*.js)"
+      "Bash(ls -la D:/obsidian-vault-mcp/dist/*.js)",
+      "mcp__obsidian-vault-team-context__sync_graph_to_obsidian"
     ]
   }
 }

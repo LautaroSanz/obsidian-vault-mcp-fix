@@ -43,11 +43,29 @@ import {
   MarkDecisionCompleteInputSchema,
 } from "./tools/linking-tools.js";
 import { advancedSearch, AdvancedSearchInputSchema } from "./tools/search-tools.js";
+import {
+  getKnowledgeGraph,
+  analyzeNodeImpact,
+  findCommunities,
+  getNodePath,
+  getPersonNetwork,
+  getRepoDecisionHistory,
+  GetKnowledgeGraphInputSchema,
+  AnalyzeNodeImpactInputSchema,
+  FindCommunitiesInputSchema,
+  GetNodePathInputSchema,
+  GetPersonNetworkInputSchema,
+  GetRepoDecisionHistoryInputSchema,
+} from "./tools/graph-tools.js";
+import {
+  syncGraphToObsidian,
+  SyncGraphToObsidianInputSchema,
+} from "./tools/obsidian-sync-tools.js";
 import { repoDiscovery } from "./git/repo-discovery.js";
 
 const server = new McpServer({
   name: "obsidian-vault-team-context",
-  version: "1.2.0",
+  version: "3.0.0",
 });
 
 // Initialize repo discovery
@@ -308,6 +326,78 @@ server.tool(
   AdvancedSearchInputSchema.shape,
   async (params: any) => {
     const result = await advancedSearch(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+// Knowledge Graph Tools (Phase 3)
+server.tool(
+  "get_knowledge_graph",
+  "Construir y visualizar el knowledge graph del equipo (decisiones, commits, personas, repos). Soporta formato Mermaid y JSON.",
+  GetKnowledgeGraphInputSchema.shape,
+  async (params: any) => {
+    const result = await getKnowledgeGraph(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "analyze_node_impact",
+  "Analizar el impacto de un nodo del grafo: cuántos nodos alcanza, repos y personas afectadas",
+  AnalyzeNodeImpactInputSchema.shape,
+  async (params: any) => {
+    const result = await analyzeNodeImpact(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "find_communities",
+  "Detectar comunidades/clusters naturales de nodos en el knowledge graph",
+  FindCommunitiesInputSchema.shape,
+  async (params: any) => {
+    const result = await findCommunities(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "get_node_path",
+  "Encontrar el camino más corto entre dos nodos del grafo (shortest path BFS)",
+  GetNodePathInputSchema.shape,
+  async (params: any) => {
+    const result = await getNodePath(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "get_person_network",
+  "Ver el network de una persona: reuniones, decisiones, action items, colaboradores y repos",
+  GetPersonNetworkInputSchema.shape,
+  async (params: any) => {
+    const result = await getPersonNetwork(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+server.tool(
+  "get_repo_decision_history",
+  "Ver el historial de decisiones que afectaron un repositorio específico",
+  GetRepoDecisionHistoryInputSchema.shape,
+  async (params: any) => {
+    const result = await getRepoDecisionHistory(params);
+    return { content: [{ type: "text", text: result }] };
+  },
+);
+
+// Obsidian Sync (Phase 3+)
+server.tool(
+  "sync_graph_to_obsidian",
+  "Sincronizar el knowledge graph al vault de Obsidian: crea notas para Personas/, Repos/, Decisiones/ con wikilinks entre ellas, y una nota MOC '_Mapa del Equipo.md' con diagrama Mermaid. Después de correr, abrir Graph View en Obsidian (Ctrl+G) para ver el cerebro visual.",
+  SyncGraphToObsidianInputSchema.shape,
+  async (params: any) => {
+    const result = await syncGraphToObsidian(params);
     return { content: [{ type: "text", text: result }] };
   },
 );

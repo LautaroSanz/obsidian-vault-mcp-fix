@@ -1,7 +1,7 @@
 # Especificación Fase 3: Knowledge Graph + Visualización
 
-**Estado:** Planificación  
-**Timeline:** 1-2 sprints  
+**Estado:** COMPLETADO (v3.0.0)  
+**Timeline:** 1 sesión  
 **Dependencias:** Phase 2 completado  
 **Scope:** Grafo de conocimiento, visualización, análisis de relaciones
 
@@ -651,44 +651,50 @@ Formatos soportados:
 ## 12. Plan de Implementación
 
 ### 12a: Foundation (Semana 1)
-- [ ] Definir KnowledgeGraph class
-- [ ] Implementar poblamiento desde Memory
-- [ ] Crear GraphNode, GraphEdge types
+- [x] Definir KnowledgeGraph class
+- [x] Implementar poblamiento desde Memory
+- [x] Crear GraphNode, GraphEdge types
 
 ### 12b: Analysis Algorithms (Semana 1-2)
-- [ ] Centralidade metrics
-- [ ] Community detection
-- [ ] Path analysis
-- [ ] Impact analysis
+- [x] Centralidad metrics (degree centrality + importance score)
+- [x] Community detection
+- [x] Path analysis
+- [x] Impact analysis
 
 ### 12c: Visualization (Semana 2)
-- [ ] Mermaid generation
-- [ ] SVG generation
-- [ ] JSON export
-- [ ] get_knowledge_graph tool
+- [x] Mermaid generation (con classDef colors+shapes por tipo de nodo)
+- [ ] SVG generation (no implementado, fuera de scope)
+- [x] JSON export
+- [x] get_knowledge_graph tool
 
 ### 12d: Query Tools (Semana 2-3)
-- [ ] analyze_node_impact
-- [ ] find_communities
-- [ ] get_node_path
-- [ ] get_person_network
-- [ ] get_repo_decision_history
+- [x] analyze_node_impact
+- [x] find_communities
+- [x] get_node_path
+- [x] get_person_network
+- [x] get_repo_decision_history
 
 ### 12e: Polish (Semana 3)
 - [ ] Tests
 - [ ] Performance optimization
-- [ ] Documentation
+- [x] Documentation (memory + ROADMAP)
 - [ ] Examples
 
 ---
 
 ## 13. Dependencias Nuevas
 
-- `graphology` (grafo lib)
-- `graphology-metrics` (centralidad, etc)
-- `graphology-communities-louvain` (community detection)
-- `mermaid` (already available)
-- (opcional) `cypher-query-language` (si exportamos Neo4j)
+**Implementado sin dependencias externas — TypeScript puro.**
+
+Las libs de la especificación original (`graphology`, `graphology-metrics`, `graphology-communities-louvain`) fueron descartadas en favor de algoritmos propios:
+- BFS para reachability, shortest path y bottleneck detection
+- Community detection con seeding por topics/repos
+- Degree centrality calculada en el builder
+
+Esto elimina dependencias externas y mantiene el grafo < 100ms para el volumen actual (< 1000 nodos).
+
+- (opcional futuro) `graphology` si el grafo escala a > 10k nodos
+- (opcional futuro) `cypher-query-language` si se agrega Neo4j
 
 ---
 

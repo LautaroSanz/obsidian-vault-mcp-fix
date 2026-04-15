@@ -39,16 +39,16 @@ export const GIT_CONFIG: GitConfig = {
   refreshInterval: 3600000, // 1 hour
 };
 
-// Team Members (8 people)
+// Team Members - DataOilers
 export const TEAM_MEMBERS: TeamMember[] = [
-  { name: "Alice", email: process.env.TEAM_ALICE_EMAIL || "alice@company.com", role: "Backend Lead" },
-  { name: "Bob", email: process.env.TEAM_BOB_EMAIL || "bob@company.com", role: "Frontend" },
-  { name: "Charlie", email: process.env.TEAM_CHARLIE_EMAIL || "charlie@company.com", role: "DevOps" },
-  { name: "Diana", email: process.env.TEAM_DIANA_EMAIL || "diana@company.com", role: "QA Lead" },
-  { name: "Eve", email: process.env.TEAM_EVE_EMAIL || "eve@company.com", role: "Backend" },
-  { name: "Frank", email: process.env.TEAM_FRANK_EMAIL || "frank@company.com", role: "Frontend" },
-  { name: "Grace", email: process.env.TEAM_GRACE_EMAIL || "grace@company.com", role: "Data Engineer" },
-  { name: "Henry", email: process.env.TEAM_HENRY_EMAIL || "henry@company.com", role: "Security" },
+  { name: "Emiliano", email: process.env.TEAM_Emiliano_EMAIL || "emiliano@dataoilers.com", role: "" },
+  { name: "Emanuel",  email: process.env.TEAM_Emanuel_EMAIL  || "emanuel@dataoilers.com",  role: "" },
+  { name: "Agustin",  email: process.env.TEAM_Agustin_EMAIL  || "agustin@dataoilers.com",  role: "" },
+  { name: "Lautaro",  email: process.env.TEAM_Lautaro_EMAIL  || "lautaro@dataoilers.com",  role: "" },
+  { name: "Franco",   email: process.env.TEAM_Franco_EMAIL   || "franco@dataoilers.com",   role: "" },
+  { name: "Branco",   email: process.env.TEAM_Branco_EMAIL   || "branco@dataoilers.com",   role: "" },
+  { name: "Gaston",   email: process.env.TEAM_Gaston_EMAIL   || "gaston@dataoilers.com",   role: "" },
+  { name: "Eliezer",  email: process.env.TEAM_Eliezer_EMAIL  || "matias.rivero@dataoilers.com", role: "" },
 ];
 
 // Obsidian Vaults
