@@ -186,24 +186,80 @@ class KnowledgeGraph {
 
 ---
 
+## Phase 4: Audio Pipeline — Procesamiento de Reuniones con Clientes
+
+**Status:** ESPECIFICADO, pendiente implementación
+**Versión objetivo:** v4.0.0
+**Dependencia:** Phase 3 completado
+**Scope:** Transcripción local, extracción de contexto con IA, watcher automático
+
+### Nuevas Herramientas (4)
+
+- `transcribe_audio` — Transcripción local con Whisper (@xenova/transformers)
+- `analyze_meeting_transcript` — Extracción estructurada con Claude API
+- `process_meeting_recording` — Pipeline completo: audio → nota Obsidian
+- `get_audio_watcher_status` — Estado del servicio watcher
+
+### Características
+
+#### Watcher Automático
+```
+Carpeta incoming/ → AudioWatcher (chokidar) → Cola de procesamiento
+Procesa secuencialmente → processed/ (éxito) o failed/ (error)
+Re-encola archivos pendientes al reiniciar el servidor
+```
+
+#### Transcripción Local (sin cloud)
+```
+Backend: @xenova/transformers (Whisper small/medium)
+Idioma: español (configurable)
+Formatos: mp3, mp4, wav, m4a, ogg, webm, flac
+Sin dependencia de Python, sin API externa
+```
+
+#### Extracción con IA
+```
+Claude API (claude-sonnet-4-6) analiza la transcripción
+Extrae: objectives[], roadmapSteps[], limitations[], people[],
+        decisions[], actionItems[], topics[]
+```
+
+#### Integración con sistema existente
+```
+Notas estructuradas en Obsidian (template extendido)
+MemoryClient (MeetingEntry con audioMetadata)
+Knowledge Graph (nuevos tipos: objective, limitation + edges define/constrains)
+Consultable via query_memory y search_notes
+```
+
+### Stack Nuevo
+```
+@xenova/transformers (Whisper local)
+chokidar (file watcher)
+@anthropic-ai/sdk (análisis Claude)
+```
+
+### Documentación Phase 4
+- FASE-4-ESPECIFICACION.md (completo, en español)
+
+---
+
 ## Roadmap Temporal
 
 ```
-Ahora (Semana 1)
-  └─ Phase 1: COMPLETADO
+Fases 1-3: COMPLETADAS
 
-Semana 2-3
-  └─ Phase 2: Auto-linking + Memory persistente
+Phase 4: Audio Pipeline
+  └─ Spec completado (2026-04-16)
+  └─ Implementación: pendiente
 
-Semana 4-5
-  └─ Phase 3: Knowledge Graph + Visualización
-
-Post-Phase 3 (Roadmap Futuro)
+Post-Phase 4 (Roadmap Futuro)
+  ├─ Speaker diarization (pyannote)
+  ├─ Integración directa con Zoom/Teams/Meet API
   ├─ Neo4j integration (grafos grandes)
-  ├─ Visualización 3D
-  ├─ Real-time collaboration
-  ├─ ML auto-tagging
-  └─ Recomendaciones basadas en patterns
+  ├─ Notificaciones push al completar procesamiento
+  ├─ ML auto-tagging de reuniones
+  └─ Real-time transcription (live captioning)
 ```
 
 ---
