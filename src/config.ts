@@ -52,36 +52,42 @@ export const TEAM_MEMBERS: TeamMember[] = [
  ];
 
 // Obsidian Vaults
+// Paths default cross-platform usando homedir(). Override via env var VAULTS_<NAME>_PATH.
 export const VAULTS: Record<string, VaultConfig> = {
   FACULTAD: {
     name: "FACULTAD",
-    path: "C:\\Users\\riper\\Documentos\\FACULTAD",
+    path: process.env.VAULTS_FACULTAD_PATH || join(HOME, "Documentos", "FACULTAD"),
     hasGit: true,
   },
   DATAOILERS: {
     name: "DATAOILERS",
-    path: "C:\\Users\\riper\\Documentos\\DATAOILERS",
+    path: process.env.VAULTS_DATAOILERS_PATH || join(HOME, "Documentos", "DATAOILERS"),
     hasGit: false,
   },
   PROYECTOS: {
     name: "PROYECTOS",
-    path: "C:\\Users\\riper\\Documentos\\PROYECTOS",
+    path: process.env.VAULTS_PROYECTOS_PATH || join(HOME, "Documentos", "PROYECTOS"),
     hasGit: false,
   },
 };
 
 // Repos from Data Oilers organization (local paths)
+// Override via env var REPO_<NAME_UPPER_SNAKE>_PATH.
 export let REPOS: Record<string, RepoConfig> = {
   "enterprise-ai-platform": {
     name: "enterprise-ai-platform",
     url: "https://github.com/data-oilers/enterprise-ai-platform",
-    localPath: "D:\\repos\\data-oilers\\enterprise-ai-platform",
+    localPath:
+      process.env.REPO_ENTERPRISE_AI_PLATFORM_PATH ||
+      join(HOME, "repos", "data-oilers", "enterprise-ai-platform"),
     org: "data-oilers",
   },
   "poc-macro-riesgo": {
     name: "poc-macro-riesgo",
     url: "https://github.com/data-oilers/poc-macro-riesgo",
-    localPath: "D:\\repos\\data-oilers\\poc-macro-riesgo",
+    localPath:
+      process.env.REPO_POC_MACRO_RIESGO_PATH ||
+      join(HOME, "repos", "data-oilers", "poc-macro-riesgo"),
     org: "data-oilers",
   },
 };
