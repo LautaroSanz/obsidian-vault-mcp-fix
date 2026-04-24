@@ -1,0 +1,35 @@
+{
+  "_comentario": "Ejemplo de settings.local.json (NO versionar). Va en <repo>/.claude/settings.local.json o en ~/.claude/settings.local.json para permisos globales.",
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(npm run:*)",
+      "Bash(npm list:*)",
+      "Bash(python3:*)",
+      "Bash(gh api:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh repo view:*)",
+      "Read(//usr/bin/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//tmp/**)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__obsidian-vault__list_subjects",
+      "mcp__obsidian-vault__read_note",
+      "mcp__obsidian-vault__create_note",
+      "mcp__obsidian-vault__search_notes",
+      "mcp__obsidian-vault__append_to_note",
+      "mcp__obsidian-vault__update_note"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "obsidian-vault"
+  ]
+}

@@ -2,6 +2,9 @@
 
 El MCP está **100% listo para probar**. Sigue estos pasos:
 
+> [!info] Onboarding para miembros nuevos del equipo
+> Si estás configurando Claude Code + MCP + skills + vaults desde cero en tu máquina, hay un paquete de onboarding completo con scripts automatizados en [`onboarding/`](./onboarding/README.md). Cubre instalación end-to-end para Linux/Mac/Windows.
+
 ## Paso 1: Registrar en Claude Code (1 minuto)
 
 1. Abre **Claude Code Settings**

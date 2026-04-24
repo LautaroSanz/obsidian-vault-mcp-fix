@@ -1,0 +1,10 @@
+{
+  "_comentario": "Copiar a <repo>/.mcp.json y SE VERSIONA en ese repo. Editar args para que apunte al dist/index.js del clone del MCP en tu home. Convención del equipo: clonar data-oilers/obsidian-vault-mcp en ~/obsidian-vault-mcp/ para que el path sea igual en todas las máquinas Linux/Mac (en Windows ajustar).",
+  "mcpServers": {
+    "obsidian-vault-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/home/REEMPLAZAR-USUARIO/obsidian-vault-mcp/dist/index.js"]
+    }
+  }
+}
