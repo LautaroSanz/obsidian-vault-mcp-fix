@@ -33,7 +33,22 @@ Editar `.env` con:
 
 3. **Configurar vaults de Obsidian**
 
-Editar `src/config.ts` y actualizar los paths de los vaults según tu sistema:
+Los paths de vaults tienen default cross-platform (`~/Documentos/<NAME>`). Si tus vaults viven ahí, **no necesitás cambiar nada**.
+
+Si están en otra ruta, override con env vars en `.env`:
+
+```bash
+# Linux
+VAULTS_FACULTAD_PATH=/home/juan/mis-notas/FACULTAD
+
+# macOS
+VAULTS_FACULTAD_PATH=/Users/juan/Documents/FACULTAD
+
+# Windows (usar forward slash o doble backslash)
+VAULTS_FACULTAD_PATH=C:/Users/Juan/Obsidian/FACULTAD
+```
+
+Alternativa: editar `src/config.ts` directamente (requiere `npm run build` después):
 
 ```typescript
 export const VAULTS: Record<string, VaultConfig> = {

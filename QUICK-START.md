@@ -110,26 +110,30 @@ Inputs:
 ### "MCP not found / tool not found"
 ```bash
 # Verifica que el server está corriendo
+# Linux/Mac:
+node ~/obsidian-vault-mcp/dist/index.js
+# Windows:
 node D:\obsidian-vault-mcp\dist\index.js
 ```
 Si sale error, reporta el error exacto.
 
 ### "Vault no encontrado"
-Las rutas ya están configuradas correctamente en `C:\Users\riper\Documentos\`.
+El default es `~/Documentos/<NAME>` (cross-platform). Si tus vaults están en otra ruta, overrideá con `VAULTS_<NAME>_PATH` en `.env` — ver CONFIGURACION-MCP.md § Paso 1b.
 
 ### "Error creando nota"
-Verifica que la carpeta existe: `C:\Users\riper\Documentos\FACULTAD\Reuniones\`
+Verifica que la carpeta `Reuniones/` existe dentro del vault. El MCP la crea sola solo en algunos flujos — crearla a mano si falla.
 
 ---
 
 ## Configuración Personalizada
 
 Si quieres agregar:
-- **Tus repos Git:** Edita `src/config.ts`, sección `REPOS`
-- **Tus vaults:** Edita `src/config.ts`, sección `VAULTS`
-- **GitHub org:** Variables `GITHUB_TOKEN` y `GITHUB_ORG`
+- **Tus repos Git:** env var `REPO_<NAME_UPPER>_PATH` en `.env`, o `src/config.ts` sección `REPOS`
+- **Tus vaults:** env var `VAULTS_<NAME>_PATH` en `.env`, o `src/config.ts` sección `VAULTS`
+- **GitHub org:** `GITHUB_TOKEN` y `GITHUB_ORG` en `.env`
 
-Luego: `npm run build` + reinicia Claude Code
+Con env vars NO hace falta recompilar. Solo editar `.env` y reiniciar el MCP.
+Si editás `src/config.ts`, sí hace falta: `npm run build` + reiniciar Claude Code.
 
 ---
 

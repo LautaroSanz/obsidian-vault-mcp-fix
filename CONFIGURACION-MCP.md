@@ -12,43 +12,71 @@ El MCP está compilado y listo. Necesitas completar 3 pasos para conectarlo con 
 
 Abre Obsidian y ve a Settings → About → Vault location para ver dónde están guardados.
 
-Típicamente en Windows están en:
-```
-C:\Users\TuUsuario\Documentos\NombreVault
-C:\Users\TuUsuario\AppData\Local\Obsidian\Data\...
-O donde hayas configurado
+Ubicaciones típicas por OS:
+
+| OS | Ruta típica |
+|---|---|
+| Linux | `/home/<usuario>/Documentos/<NombreVault>` |
+| macOS | `/Users/<usuario>/Documentos/<NombreVault>` |
+| Windows | `C:\Users\<usuario>\Documentos\<NombreVault>` |
+
+### 1b. Elegir cómo override el default (2 opciones)
+
+Desde la refactorización multi-OS, el código usa `~/Documentos/<NAME>` como default cross-platform — **si tus vaults viven ahí, no tenés que cambiar nada** y podés saltear 1b completo.
+
+Si tus vaults están en otra ruta, elegí UNA de estas dos opciones:
+
+#### Opción A — Variables de entorno (recomendado, no requiere recompilar)
+
+En tu `.env` (copiado de `.env.example`):
+
+```bash
+# Descomentar y ajustar al path real:
+VAULTS_FACULTAD_PATH=/ruta/absoluta/a/FACULTAD
+VAULTS_DATAOILERS_PATH=/ruta/absoluta/a/DATAOILERS
+VAULTS_PROYECTOS_PATH=/ruta/absoluta/a/PROYECTOS
 ```
 
-### 1b. Actualizar config.ts
+Ejemplos por OS:
 
-Edita `src/config.ts` y reemplaza las rutas en la sección `VAULTS`:
+```bash
+# Linux
+VAULTS_FACULTAD_PATH=/home/juan/mis-notas/FACULTAD
+
+# macOS
+VAULTS_FACULTAD_PATH=/Users/juan/Documents/FACULTAD
+
+# Windows (doble backslash o forward slash)
+VAULTS_FACULTAD_PATH=C:\\Users\\Juan\\Obsidian\\FACULTAD
+# o
+VAULTS_FACULTAD_PATH=C:/Users/Juan/Obsidian/FACULTAD
+```
+
+Con esta opción **no hay que recompilar** — solo reiniciar el MCP.
+
+#### Opción B — Editar `src/config.ts` directamente
+
+Si preferís dejarlo fijo en código (útil si los vaults nunca cambian de lugar):
 
 ```typescript
 export const VAULTS: Record<string, VaultConfig> = {
   FACULTAD: {
     name: "FACULTAD",
-    path: "C:\\Users\\TuUsuario\\Documentos\\FACULTAD",  // ACTUALIZAR ESTA RUTA
+    path: "/ruta/absoluta/a/FACULTAD",   // Linux/Mac
+    // path: "C:\\Users\\Juan\\Documentos\\FACULTAD",  // Windows
     hasGit: true,
   },
-  DATAOILERS: {
-    name: "DATAOILERS",
-    path: "C:\\Users\\TuUsuario\\Documentos\\DATAOILERS",  // ACTUALIZAR ESTA RUTA
-    hasGit: false,
-  },
-  PROYECTOS: {
-    name: "PROYECTOS",
-    path: "C:\\Users\\TuUsuario\\Documentos\\PROYECTOS",  // ACTUALIZAR ESTA RUTA
-    hasGit: false,
-  },
+  // ...
 };
 ```
 
-**Importante:** 
-- Usa `\\` (doble backslash) en las rutas de Windows o usa `/` (forward slash)
-- Las rutas DEBEN existir como carpetas reales en tu disco
-- Si no tienes estos 3 vaults, elimina los que no uses y agrega los que sí
+**Importante:**
+- En Windows usá `\\` (doble backslash) o `/` (forward slash).
+- Las rutas DEBEN existir como carpetas reales en tu disco.
+- Si no tenés los 3 vaults, eliminá los que no uses.
+- Con esta opción **hay que recompilar** (`npm run build`) después de cambiar.
 
-### 1c. Recompila
+### 1c. Recompila (solo si elegiste Opción B)
 
 ```bash
 npm run build
@@ -70,21 +98,26 @@ Si quieres que el MCP auto-descubra repos desde tu org de GitHub:
 
 ### 2b. Configurar variables de entorno
 
-Opción A - Variables del sistema (Permanente):
-```
-Windows: Settings → Environment Variables
-Variable: GITHUB_TOKEN
-Value: ghp_xxxxx
-Variable: GITHUB_ORG
-Value: tu-organizacion
-```
-
-Opción B - Archivo .env local (Temporal, para testing):
+Opción A — Archivo `.env` del proyecto (recomendado):
 ```bash
-cd D:\obsidian-vault-mcp
-# Edita .env.local y completa:
+# Desde la raíz del repo del MCP
+cp .env.example .env
+# Editar .env y completar:
 GITHUB_ORG=tu-organizacion
 GITHUB_TOKEN=ghp_xxxxx
+```
+
+`.env` está en `.gitignore` — no lo commitees.
+
+Opción B — Variables del sistema (permanente por máquina):
+```bash
+# Linux/macOS: agregar a ~/.bashrc o ~/.zshrc
+export GITHUB_TOKEN=ghp_xxxxx
+export GITHUB_ORG=tu-organizacion
+
+# Windows: Settings → Environment Variables
+# Variable: GITHUB_TOKEN  Value: ghp_xxxxx
+# Variable: GITHUB_ORG    Value: tu-organizacion
 ```
 
 ### 2c. Verificar
